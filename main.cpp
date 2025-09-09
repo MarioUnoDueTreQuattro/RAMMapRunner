@@ -7,6 +7,7 @@
 #include <QSettings>
 #include <windows.h>
 #include <iostream>
+#include "logger.h"
 
 int iIntervalInSeconds;
 int iIntervalBetweenCommands;
@@ -14,6 +15,7 @@ int iCounterThreshold;
 int iCounter = 0;
 int iMemoryLimit;
 QTimer timer;
+Logger logger("c:\\RAMMapRunner.log");
 
 void readSettings()
 {
@@ -33,6 +35,10 @@ void readSettings()
     bSettingExists = settings.contains ("iMemoryLimit");
     if (!bSettingExists) settings.setValue ("iMemoryLimit", 1024);
     iMemoryLimit = settings.value ("iMemoryLimit", 1024).toInt ();
+//    logger.write("iIntervalInSeconds " +QString::number (iIntervalInSeconds));
+//    logger.write("iIntervalBetweenCommands " +QString::number (iIntervalBetweenCommands));
+//    logger.write("iCounterThreshold " +QString::number (iCounterThreshold));
+//    logger.write("iMemoryLimit " +QString::number (iMemoryLimit));
 }
 
 // Worker class separated from main
@@ -48,6 +54,7 @@ public slots:
         timer.setInterval (iIntervalInSeconds * 1000);
         double dFreeMem = getFreeRAM ();
         qDebug() << "Free RAM: " << dFreeMem;
+        logger.write("Free RAM: " +QString::number (dFreeMem));
         if (dFreeMem > iMemoryLimit && iCounter < iCounterThreshold)
         {
             iCounter++;
@@ -55,7 +62,8 @@ public slots:
             return;
         }
         iCounter = 0;
-        qDebug() << "Job stated at:" << QDateTime::currentDateTime().toString();
+        qDebug() << "Job started at:" << QDateTime::currentDateTime().toString();
+        logger.write("Job started");
         int retCode;
         QString sCommand;
         // -Ewsmt0
@@ -112,6 +120,7 @@ int main(int argc, char *argv[])
     QCoreApplication app(argc, argv);
     app.setOrganizationName("andreag");
     app.setApplicationName("RAMMapRunner");
+    logger.write("Application started");
     readSettings();
     Worker worker;
     // QTimer timer;
