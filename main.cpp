@@ -13,6 +13,27 @@ int iIntervalBetweenCommands;
 int iCounterThreshold;
 int iCounter = 0;
 int iMemoryLimit;
+QTimer timer;
+
+void readSettings()
+{
+    qApp->setOrganizationName("andreag");
+    qApp->setApplicationName("RAMMapRunner");
+    QSettings settings;
+    bool bSettingExists;
+    bSettingExists = settings.contains ("iIntervalInSeconds");
+    if (!bSettingExists) settings.setValue ("iIntervalInSeconds", 30);
+    iIntervalInSeconds = settings.value ("iIntervalInSeconds", 10).toInt ();
+    bSettingExists = settings.contains ("iIntervalBetweenCommands");
+    if (!bSettingExists) settings.setValue ("iIntervalBetweenCommands", 1000);
+    iIntervalBetweenCommands = settings.value ("iIntervalBetweenCommands", 1000).toInt ();
+    bSettingExists = settings.contains ("iCounterThreshold");
+    if (!bSettingExists) settings.setValue ("iCounterThreshold", 10);
+    iCounterThreshold = settings.value ("iCounterThreshold", 10).toInt ();
+    bSettingExists = settings.contains ("iMemoryLimit");
+    if (!bSettingExists) settings.setValue ("iMemoryLimit", 1024);
+    iMemoryLimit = settings.value ("iMemoryLimit", 1024).toInt ();
+}
 
 // Worker class separated from main
 class Worker : public QObject
@@ -20,24 +41,11 @@ class Worker : public QObject
     Q_OBJECT
 
 public slots:
+
     void doWork()
     {
-        qApp->setOrganizationName("andreag");
-        qApp->setApplicationName("RAMMapRunner");
-        QSettings settings;
-        bool bSettingExists;
-        bSettingExists = settings.contains ("iIntervalInSeconds");
-        if (!bSettingExists) settings.setValue ("iIntervalInSeconds", 30);
-        iIntervalInSeconds = settings.value ("iIntervalInSeconds", 10).toInt ();
-        bSettingExists = settings.contains ("iIntervalBetweenCommands");
-        if (!bSettingExists) settings.setValue ("iIntervalBetweenCommands", 1000);
-        iIntervalBetweenCommands = settings.value ("iIntervalBetweenCommands", 1000).toInt ();
-        bSettingExists = settings.contains ("iCounterThreshold");
-        if (!bSettingExists) settings.setValue ("iCounterThreshold", 10);
-        iCounterThreshold = settings.value ("iCounterThreshold", 10).toInt ();
-        bSettingExists = settings.contains ("iMemoryLimit");
-        if (!bSettingExists) settings.setValue ("iMemoryLimit", 1024);
-        iMemoryLimit = settings.value ("iMemoryLimit", 1024).toInt ();
+        readSettings();
+        timer.setInterval (iIntervalInSeconds * 1000);
         double dFreeMem = getFreeRAM ();
         qDebug() << "Free RAM: " << dFreeMem;
         if (dFreeMem > iMemoryLimit && iCounter < iCounterThreshold)
@@ -104,22 +112,9 @@ int main(int argc, char *argv[])
     QCoreApplication app(argc, argv);
     app.setOrganizationName("andreag");
     app.setApplicationName("RAMMapRunner");
-    QSettings settings;
-    bool bSettingExists;
-    bSettingExists = settings.contains ("iIntervalInSeconds");
-    if (!bSettingExists) settings.setValue ("iIntervalInSeconds", 30);
-    iIntervalInSeconds = settings.value ("iIntervalInSeconds", 10).toInt ();
-    bSettingExists = settings.contains ("iIntervalBetweenCommands");
-    if (!bSettingExists) settings.setValue ("iIntervalBetweenCommands", 1000);
-    iIntervalBetweenCommands = settings.value ("iIntervalBetweenCommands", 1000).toInt ();
-    bSettingExists = settings.contains ("iCounterThreshold");
-    if (!bSettingExists) settings.setValue ("iCounterThreshold", 10);
-    iCounterThreshold = settings.value ("iCounterThreshold", 10).toInt ();
-    bSettingExists = settings.contains ("iMemoryLimit");
-    if (!bSettingExists) settings.setValue ("iMemoryLimit", 1024);
-    iMemoryLimit = settings.value ("iMemoryLimit", 1024).toInt ();
+    readSettings();
     Worker worker;
-    QTimer timer;
+    // QTimer timer;
     // Connect the timer timeout to the worker's job
     QObject::connect(&timer, SIGNAL(timeout()), &worker, SLOT(doWork()));
     // Start timer with 10 seconds interval (10000 ms)
