@@ -55,9 +55,9 @@ public slots:
         double dFreeMem = getFreeRAM ();
         qDebug() << "Free RAM: " << dFreeMem;
         logger.write("Free RAM: " +QString::number (dFreeMem));
+        iCounter++;
         if (dFreeMem > iMemoryLimit && iCounter < iCounterThreshold)
         {
-            iCounter++;
             qDebug() << "iCounter: " << iCounter;
             return;
         }
@@ -126,7 +126,6 @@ int main(int argc, char *argv[])
     // QTimer timer;
     // Connect the timer timeout to the worker's job
     QObject::connect(&timer, SIGNAL(timeout()), &worker, SLOT(doWork()));
-    // Start timer with 10 seconds interval (10000 ms)
     timer.start(iIntervalInSeconds * 1000);
     return app.exec();
 }
