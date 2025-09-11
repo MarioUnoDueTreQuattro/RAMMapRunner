@@ -18,6 +18,7 @@ int iCounter = 0;
 int iMemoryLimit;
 int iLowMemoryMemoryLimit;
 int iLowMemoryCheckIntervalInSeconds;
+double dFreeMem;
 //QTimer timer;
 QTimer checkLowMemoryTimer;
 QElapsedTimer elapsedTimer;
@@ -66,69 +67,80 @@ public slots:
 
     int runCommands()
     {
-        int retCode;
-        QString sCommand;
-        // -Ewsmt0
-        sCommand = "C:\\RAMOptimizer\\RAMMap.exe -Ew";
-        retCode = QProcess::execute(sCommand);
-        Sleep(iIntervalBetweenCommands);
-//        qDebug() << "Processo terminato con codice:" << retCode;
-        sCommand = "C:\\RAMOptimizer\\RAMMap.exe -Es";
-        retCode = QProcess::execute(sCommand);
-        Sleep(iIntervalBetweenCommands);
-//        qDebug() << "Processo terminato con codice:" << retCode;
-        sCommand = "C:\\RAMOptimizer\\RAMMap.exe -Em";
-        retCode = QProcess::execute(sCommand);
-        Sleep(iIntervalBetweenCommands);
-//        qDebug() << "Processo terminato con codice:" << retCode;
-        sCommand = "C:\\RAMOptimizer\\RAMMap.exe -Et";
-        retCode = QProcess::execute(sCommand);
-        Sleep(iIntervalBetweenCommands);
-//        qDebug() << "Processo terminato con codice:" << retCode;
-        sCommand = "C:\\RAMOptimizer\\RAMMap.exe -E0";
-        retCode = QProcess::execute(sCommand);
-        Sleep(iIntervalBetweenCommands);
+        QStringList commands = { "-Ew", "-Es", "-Em", "-Et", "-E0" };
+        QString sBaseCommand = "C:\\RAMOptimizer\\RAMMap.exe";
+        int retCode = 0;
+        for (int i = 0; i < commands.size(); ++i)
+        {
+            retCode = QProcess::execute(sBaseCommand + " " + commands[i]);
+            if (i < commands.size() - 1)
+                Sleep(iIntervalBetweenCommands);
+        }
+        dFreeMem = getFreeRAM();
+        logger.write("Free RAM after cleanup: " + QString::number(dFreeMem));
         return retCode;
+        // int retCode;
+        // QString sCommand;
+        //        // -Ewsmt0
+        // sCommand = "C:\\RAMOptimizer\\RAMMap.exe -Ew";
+        // retCode = QProcess::execute(sCommand);
+        // Sleep(iIntervalBetweenCommands);
+        ////        qDebug() << "Processo terminato con codice:" << retCode;
+        // sCommand = "C:\\RAMOptimizer\\RAMMap.exe -Es";
+        // retCode = QProcess::execute(sCommand);
+        // Sleep(iIntervalBetweenCommands);
+        ////        qDebug() << "Processo terminato con codice:" << retCode;
+        // sCommand = "C:\\RAMOptimizer\\RAMMap.exe -Em";
+        // retCode = QProcess::execute(sCommand);
+        // Sleep(iIntervalBetweenCommands);
+        ////        qDebug() << "Processo terminato con codice:" << retCode;
+        // sCommand = "C:\\RAMOptimizer\\RAMMap.exe -Et";
+        // retCode = QProcess::execute(sCommand);
+        // Sleep(iIntervalBetweenCommands);
+        ////        qDebug() << "Processo terminato con codice:" << retCode;
+        // sCommand = "C:\\RAMOptimizer\\RAMMap.exe -E0";
+        // retCode = QProcess::execute(sCommand);
+        ////        Sleep(iIntervalBetweenCommands);
+        // dFreeMem = getFreeRAM ();
+        // logger.write("Free RAM after cleanup: " + QString::number (dFreeMem));
+        // return retCode;
     }
 
     void doWork()
     {
-//        qint64 elapsedTimeMs = elapsedTimer.elapsed();
-//        double elapsedTimeSec = static_cast<double>(elapsedTimeMs) / 1000.0;
-//        if (elapsedTimeSec < iMinimumIntervalInSeconds) return;
+        // qint64 elapsedTimeMs = elapsedTimer.elapsed();
+        // double elapsedTimeSec = static_cast<double>(elapsedTimeMs) / 1000.0;
+        // if (elapsedTimeSec < iMinimumIntervalInSeconds) return;
         readSettings();
         //timer.setInterval (iIntervalInSeconds * 1000);
         checkLowMemoryTimer.setInterval (iLowMemoryCheckIntervalInSeconds * 1000);
-        double dFreeMem = getFreeRAM ();
+        dFreeMem = getFreeRAM ();
         qDebug() << "Free RAM: " << dFreeMem;
-//        logger.write("Free RAM: " + QString::number (dFreeMem));
+        // logger.write("Free RAM: " + QString::number (dFreeMem));
         iCounter++;
         if (dFreeMem < iMemoryLimit && iCounter >= iCounterThreshold)
         {
             qDebug() << "iCounter: " << iCounter;
-            logger.write("Free RAM: " + QString::number (dFreeMem));
             doMemoryWork ();
-            logger.write("Free RAM: " + QString::number (dFreeMem));
-//            return;
+            // return;
         }
         else if (dFreeMem < iLowMemoryMemoryLimit)
         {
             qDebug() << "iCounter: " << iCounter;
-            logger.write("Free RAM: " + QString::number (dFreeMem));
             doLowMemoryWork ();
-            logger.write("Free RAM: " + QString::number (dFreeMem));
-//            return;
+            // return;
         }
         //elapsedTimer.start ();
     }
 
     void doMemoryWork()
     {
-//        qint64 elapsedTimeMs = elapsedTimer.elapsed();
-//        double elapsedTimeSec = static_cast<double>(elapsedTimeMs) / 1000.0;
-//        if (elapsedTimeSec < iMinimumIntervalInSeconds) return;
+        // qint64 elapsedTimeMs = elapsedTimer.elapsed();
+        // double elapsedTimeSec = static_cast<double>(elapsedTimeMs) / 1000.0;
+        // if (elapsedTimeSec < iMinimumIntervalInSeconds) return;
         iCounter = 0;
         qDebug() << "doMemoryWork Job started at:" << QDateTime::currentDateTime().toString();
+        logger.write("Free RAM: " + QString::number (dFreeMem));
         logger.write("doMemoryWork Job started");
         int retCode = runCommands();
         qDebug() << "Processo terminato con codice:" << retCode;
@@ -143,6 +155,7 @@ public slots:
         //elapsedTimer.stop ();
         iCounter = 0;
         qDebug() << "doLowMemoryWork Job started at:" << QDateTime::currentDateTime().toString();
+        logger.write("Free RAM: " + QString::number (dFreeMem));
         logger.write("doLowMemoryWork Job started");
         int retCode = runCommands();
         qDebug() << "Processo terminato con codice:" << retCode;
@@ -184,8 +197,8 @@ int main(int argc, char *argv[])
     Worker worker;
     // QTimer timer;
     // Connect the timer timeout to the worker's job
-//    QObject::connect(&timer, SIGNAL(timeout()), &worker, SLOT(doWork()));
-//    timer.start(iIntervalInSeconds * 1000);
+    // QObject::connect(&timer, SIGNAL(timeout()), &worker, SLOT(doWork()));
+    // timer.start(iIntervalInSeconds * 1000);
     QObject::connect(&checkLowMemoryTimer, SIGNAL(timeout()), &worker, SLOT(doWork()));
     checkLowMemoryTimer.start(iLowMemoryCheckIntervalInSeconds * 1000);
     elapsedTimer.start ();
