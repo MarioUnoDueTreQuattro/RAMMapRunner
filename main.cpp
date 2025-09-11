@@ -1,5 +1,6 @@
 #include <QCoreApplication>
 #include <QTimer>
+#include <QElapsedTimer>
 #include <QDebug>
 #include <QDateTime>
 #include <QProcess>
@@ -10,12 +11,18 @@
 #include "logger.h"
 
 int iIntervalInSeconds;
+int iMinimumIntervalInSeconds;
 int iIntervalBetweenCommands;
 int iCounterThreshold;
 int iCounter = 0;
 int iMemoryLimit;
-QTimer timer;
+int iLowMemoryMemoryLimit;
+int iLowMemoryCheckIntervalInSeconds;
+//QTimer timer;
+QTimer checkLowMemoryTimer;
+QElapsedTimer elapsedTimer;
 Logger logger("c:\\RAMMapRunner.log");
+const double dBytesToMB = 1024.0 * 1024.0;
 
 void readSettings()
 {
@@ -26,6 +33,9 @@ void readSettings()
     bSettingExists = settings.contains ("iIntervalInSeconds");
     if (!bSettingExists) settings.setValue ("iIntervalInSeconds", 30);
     iIntervalInSeconds = settings.value ("iIntervalInSeconds", 10).toInt ();
+    bSettingExists = settings.contains ("iMinimumIntervalInSeconds");
+    if (!bSettingExists) settings.setValue ("iMinimumIntervalInSeconds", 30);
+    iMinimumIntervalInSeconds = settings.value ("iMinimumIntervalInSeconds", 10).toInt ();
     bSettingExists = settings.contains ("iIntervalBetweenCommands");
     if (!bSettingExists) settings.setValue ("iIntervalBetweenCommands", 1000);
     iIntervalBetweenCommands = settings.value ("iIntervalBetweenCommands", 1000).toInt ();
@@ -33,12 +43,18 @@ void readSettings()
     if (!bSettingExists) settings.setValue ("iCounterThreshold", 10);
     iCounterThreshold = settings.value ("iCounterThreshold", 10).toInt ();
     bSettingExists = settings.contains ("iMemoryLimit");
-    if (!bSettingExists) settings.setValue ("iMemoryLimit", 1024);
-    iMemoryLimit = settings.value ("iMemoryLimit", 1024).toInt ();
-//    logger.write("iIntervalInSeconds " +QString::number (iIntervalInSeconds));
-//    logger.write("iIntervalBetweenCommands " +QString::number (iIntervalBetweenCommands));
-//    logger.write("iCounterThreshold " +QString::number (iCounterThreshold));
-//    logger.write("iMemoryLimit " +QString::number (iMemoryLimit));
+    if (!bSettingExists) settings.setValue ("iMemoryLimit", 1280);
+    iMemoryLimit = settings.value ("iMemoryLimit", 1280).toInt ();
+    bSettingExists = settings.contains ("iLowMemoryMemoryLimit");
+    if (!bSettingExists) settings.setValue ("iLowMemoryMemoryLimit", 1024);
+    iLowMemoryMemoryLimit = settings.value ("iLowMemoryMemoryLimit", 1024).toInt ();
+    bSettingExists = settings.contains ("iLowMemoryCheckIntervalInSeconds");
+    if (!bSettingExists) settings.setValue ("iLowMemoryCheckIntervalInSeconds", 10);
+    iLowMemoryCheckIntervalInSeconds = settings.value ("iLowMemoryCheckIntervalInSeconds", 10).toInt ();
+    // logger.write("iIntervalInSeconds " +QString::number (iIntervalInSeconds));
+    // logger.write("iIntervalBetweenCommands " +QString::number (iIntervalBetweenCommands));
+    // logger.write("iCounterThreshold " +QString::number (iCounterThreshold));
+    // logger.write("iMemoryLimit " +QString::number (iMemoryLimit));
 }
 
 // Worker class separated from main
@@ -48,50 +64,93 @@ class Worker : public QObject
 
 public slots:
 
-    void doWork()
+    int runCommands()
     {
-        readSettings();
-        timer.setInterval (iIntervalInSeconds * 1000);
-        double dFreeMem = getFreeRAM ();
-        qDebug() << "Free RAM: " << dFreeMem;
-        logger.write("Free RAM: " +QString::number (dFreeMem));
-        iCounter++;
-        if (dFreeMem > iMemoryLimit && iCounter < iCounterThreshold)
-        {
-            qDebug() << "iCounter: " << iCounter;
-            return;
-        }
-        iCounter = 0;
-        qDebug() << "Job started at:" << QDateTime::currentDateTime().toString();
-        logger.write("Job started");
         int retCode;
         QString sCommand;
         // -Ewsmt0
         sCommand = "C:\\RAMOptimizer\\RAMMap.exe -Ew";
         retCode = QProcess::execute(sCommand);
         Sleep(iIntervalBetweenCommands);
-        qDebug() << "Processo terminato con codice:" << retCode;
+//        qDebug() << "Processo terminato con codice:" << retCode;
         sCommand = "C:\\RAMOptimizer\\RAMMap.exe -Es";
         retCode = QProcess::execute(sCommand);
         Sleep(iIntervalBetweenCommands);
-        qDebug() << "Processo terminato con codice:" << retCode;
+//        qDebug() << "Processo terminato con codice:" << retCode;
         sCommand = "C:\\RAMOptimizer\\RAMMap.exe -Em";
         retCode = QProcess::execute(sCommand);
         Sleep(iIntervalBetweenCommands);
-        qDebug() << "Processo terminato con codice:" << retCode;
+//        qDebug() << "Processo terminato con codice:" << retCode;
         sCommand = "C:\\RAMOptimizer\\RAMMap.exe -Et";
         retCode = QProcess::execute(sCommand);
         Sleep(iIntervalBetweenCommands);
-        qDebug() << "Processo terminato con codice:" << retCode;
+//        qDebug() << "Processo terminato con codice:" << retCode;
         sCommand = "C:\\RAMOptimizer\\RAMMap.exe -E0";
         retCode = QProcess::execute(sCommand);
         Sleep(iIntervalBetweenCommands);
+        return retCode;
+    }
+
+    void doWork()
+    {
+//        qint64 elapsedTimeMs = elapsedTimer.elapsed();
+//        double elapsedTimeSec = static_cast<double>(elapsedTimeMs) / 1000.0;
+//        if (elapsedTimeSec < iMinimumIntervalInSeconds) return;
+        readSettings();
+        //timer.setInterval (iIntervalInSeconds * 1000);
+        checkLowMemoryTimer.setInterval (iLowMemoryCheckIntervalInSeconds * 1000);
+        double dFreeMem = getFreeRAM ();
+        qDebug() << "Free RAM: " << dFreeMem;
+//        logger.write("Free RAM: " + QString::number (dFreeMem));
+        iCounter++;
+        if (dFreeMem < iMemoryLimit && iCounter >= iCounterThreshold)
+        {
+            qDebug() << "iCounter: " << iCounter;
+            logger.write("Free RAM: " + QString::number (dFreeMem));
+            doMemoryWork ();
+            logger.write("Free RAM: " + QString::number (dFreeMem));
+//            return;
+        }
+        else if (dFreeMem < iLowMemoryMemoryLimit)
+        {
+            qDebug() << "iCounter: " << iCounter;
+            logger.write("Free RAM: " + QString::number (dFreeMem));
+            doLowMemoryWork ();
+            logger.write("Free RAM: " + QString::number (dFreeMem));
+//            return;
+        }
+        //elapsedTimer.start ();
+    }
+
+    void doMemoryWork()
+    {
+//        qint64 elapsedTimeMs = elapsedTimer.elapsed();
+//        double elapsedTimeSec = static_cast<double>(elapsedTimeMs) / 1000.0;
+//        if (elapsedTimeSec < iMinimumIntervalInSeconds) return;
+        iCounter = 0;
+        qDebug() << "doMemoryWork Job started at:" << QDateTime::currentDateTime().toString();
+        logger.write("doMemoryWork Job started");
+        int retCode = runCommands();
         qDebug() << "Processo terminato con codice:" << retCode;
+    }
+
+    void doLowMemoryWork()
+    {
+        qint64 elapsedTimeMs = elapsedTimer.elapsed();
+        double elapsedTimeSec = static_cast<double>(elapsedTimeMs) / 1000.0;
+        if (elapsedTimeSec < iMinimumIntervalInSeconds) return;
+        // readSettings();
+        //elapsedTimer.stop ();
+        iCounter = 0;
+        qDebug() << "doLowMemoryWork Job started at:" << QDateTime::currentDateTime().toString();
+        logger.write("doLowMemoryWork Job started");
+        int retCode = runCommands();
+        qDebug() << "Processo terminato con codice:" << retCode;
+        elapsedTimer.start ();
     }
 
     double getFreeRAM()
     {
-        const double dBytesToMB = 1024.0 * 1024.0;
         // Declare a MEMORYSTATUSEX structure
         MEMORYSTATUSEX status;
         // Set the dwLength member to the size of the structure
@@ -125,8 +184,11 @@ int main(int argc, char *argv[])
     Worker worker;
     // QTimer timer;
     // Connect the timer timeout to the worker's job
-    QObject::connect(&timer, SIGNAL(timeout()), &worker, SLOT(doWork()));
-    timer.start(iIntervalInSeconds * 1000);
+//    QObject::connect(&timer, SIGNAL(timeout()), &worker, SLOT(doWork()));
+//    timer.start(iIntervalInSeconds * 1000);
+    QObject::connect(&checkLowMemoryTimer, SIGNAL(timeout()), &worker, SLOT(doWork()));
+    checkLowMemoryTimer.start(iLowMemoryCheckIntervalInSeconds * 1000);
+    elapsedTimer.start ();
     return app.exec();
 }
 
