@@ -9,7 +9,9 @@
 #include <windows.h>
 #include <iostream>
 #include "logger.h"
+#include "reducememoryusage.h"
 
+bool bUseInternalClean;
 int iIntervalInSeconds;
 int iMinimumIntervalInSeconds;
 int iIntervalBetweenCommands;
@@ -31,6 +33,9 @@ void readSettings()
     qApp->setApplicationName("RAMMapRunner");
     QSettings settings;
     bool bSettingExists;
+    bSettingExists = settings.contains ("bUseInternalClean");
+    if (!bSettingExists) settings.setValue ("bUseInternalClean", true);
+    bUseInternalClean = settings.value ("bUseInternalClean", true).toBool ();
     bSettingExists = settings.contains ("iIntervalInSeconds");
     if (!bSettingExists) settings.setValue ("iIntervalInSeconds", 30);
     iIntervalInSeconds = settings.value ("iIntervalInSeconds", 10).toInt ();
@@ -67,18 +72,29 @@ public slots:
 
     int runCommands()
     {
-        QStringList commands = { "-Ew", "-Es", "-Em", "-Et", "-E0" };
-        QString sBaseCommand = "C:\\RAMOptimizer\\RAMMap.exe";
-        int retCode = 0;
-        for (int i = 0; i < commands.size(); ++i)
+        if (bUseInternalClean)
         {
-            retCode = QProcess::execute(sBaseCommand + " " + commands[i]);
-            if (i < commands.size() - 1)
-                Sleep(iIntervalBetweenCommands);
+            reduceMemoryUsage rmu;
+            rmu.setAllProcessesWorkingSetSize ();
+            dFreeMem = getFreeRAM();
+            logger.write("Free RAM after cleanup: " + QString::number(dFreeMem));
+            return 0;
         }
-        dFreeMem = getFreeRAM();
-        logger.write("Free RAM after cleanup: " + QString::number(dFreeMem));
-        return retCode;
+        else
+        {
+            QStringList commands = { "-Ew", "-Es", "-Em", "-Et", "-E0" };
+            QString sBaseCommand = "C:\\RAMOptimizer\\RAMMap.exe";
+            int retCode = 0;
+            for (int i = 0; i < commands.size(); ++i)
+            {
+                retCode = QProcess::execute(sBaseCommand + " " + commands[i]);
+                if (i < commands.size() - 1)
+                    Sleep(iIntervalBetweenCommands);
+            }
+            dFreeMem = getFreeRAM();
+            logger.write("Free RAM after cleanup: " + QString::number(dFreeMem));
+            return retCode;
+        }
         // int retCode;
         // QString sCommand;
         //        // -Ewsmt0

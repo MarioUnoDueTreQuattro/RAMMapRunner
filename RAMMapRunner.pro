@@ -11,7 +11,8 @@ CONFIG -= console
 
 SOURCES += \
         logger.cpp \
-        main.cpp
+        main.cpp \
+        reducememoryusage.cpp
 
 win32:LIBS += -lpsapi
 
@@ -21,4 +22,5 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
 HEADERS += \
-    logger.h
+    logger.h \
+    reducememoryusage.h
