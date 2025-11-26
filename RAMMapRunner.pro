@@ -1,9 +1,13 @@
-QT -= gui
+QT       += core gui
 
 CONFIG += c++11
-CONFIG -= app_bundle
-CONFIG += windows
-CONFIG -= console
+#CONFIG += windows
+#CONFIG -= console
+greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
+
+QT += winextras
+
+TEMPLATE = app
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
@@ -12,7 +16,9 @@ CONFIG -= console
 SOURCES += \
         logger.cpp \
         main.cpp \
-        reducememoryusage.cpp
+        osdwidget.cpp \
+        reducememoryusage.cpp \
+        widget.cpp
 
 win32:LIBS += -lpsapi
 
@@ -23,4 +29,14 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 HEADERS += \
     logger.h \
-    reducememoryusage.h
+    osdwidget.h \
+    reducememoryusage.h \
+    widget.h
+
+FORMS += \
+    widget.ui
+
+# Disabilita completamente i messaggi qDebug() nella build di rilascio (Release)
+CONFIG(release, debug|release) {
+    DEFINES += QT_NO_DEBUG_OUTPUT
+}

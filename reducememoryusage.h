@@ -12,8 +12,8 @@ class reduceMemoryUsage : public QObject
 public:
     explicit reduceMemoryUsage(QObject* parent = nullptr);
     double getFreeRAM() ;
-    void setAllProcessesWorkingSetSize();
-    bool emptySystemWorkingSets();
+    void setAllProcessesWorkingSetSize(bool bCleanSystem=true);
+    bool emptySystemWorkingSets(bool bCleanSystem=true);
     static bool enablePrivilege(LPCTSTR privilegeName);
     // Static wrapper for QtConcurrent
     static void runEmptySystemWorkingSets(reduceMemoryUsage *self);

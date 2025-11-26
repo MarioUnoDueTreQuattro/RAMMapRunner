@@ -4,7 +4,6 @@
 
 reduceMemoryUsage::reduceMemoryUsage(QObject *parent)
 {
-
 }
 
 typedef enum _SYSTEM_MEMORY_LIST_COMMAND
@@ -18,7 +17,7 @@ typedef enum _SYSTEM_MEMORY_LIST_COMMAND
     MemoryCommandMax                      // Not a command, just a count
 } SYSTEM_MEMORY_LIST_COMMAND;
 
-typedef NTSTATUS (NTAPI *PFN_NtSetSystemInformation)(
+typedef NTSTATUS(NTAPI *PFN_NtSetSystemInformation)(
     ULONG SystemInformationClass,
     PVOID SystemInformation,
     ULONG SystemInformationLength
@@ -64,7 +63,7 @@ bool reduceMemoryUsage::enablePrivilege(LPCTSTR privilegeName)
     return true;
 }
 
-void reduceMemoryUsage::setAllProcessesWorkingSetSize()
+void reduceMemoryUsage::setAllProcessesWorkingSetSize(bool bCleanSystem)
 {
     HANDLE hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (hProcessSnap == INVALID_HANDLE_VALUE)
@@ -83,7 +82,9 @@ void reduceMemoryUsage::setAllProcessesWorkingSetSize()
             QString processName = QString::fromWCharArray(pe32.szExeFile);
             // qDebug() << __FUNCTION__ << processName;
             DWORD processId = pe32.th32ProcessID;
-            if (processId == 0 );//|| processId == 4) continue; // Skip Idle and System
+            if (bCleanSystem == false)
+                if (processId == 0 || processId == 4) continue;
+            if (processId == 0); //|| processId == 4) continue; // Skip Idle and System
             HANDLE hProcess = OpenProcess(PROCESS_SET_QUOTA | PROCESS_QUERY_INFORMATION, FALSE, processId);
             if (hProcess != nullptr)
             {
@@ -96,18 +97,18 @@ void reduceMemoryUsage::setAllProcessesWorkingSetSize()
                 }
                 else
                 {
-                    std::cout << processName.toStdString () << " " << "FAILED to trim working set. Error: " << GetLastError() << "\n";
+                    std::cout << processName.toStdString() << " " << "FAILED to trim working set. Error: " << GetLastError() << "\n";
                 }
                 CloseHandle(hProcess);
             }
         }
         while (Process32Next(hProcessSnap, &pe32));
-        emptySystemWorkingSets();
+        emptySystemWorkingSets(bCleanSystem);
     }
     CloseHandle(hProcessSnap);
 }
 
-bool reduceMemoryUsage::emptySystemWorkingSets()
+bool reduceMemoryUsage::emptySystemWorkingSets(bool bCleanSystem)
 {
     bool result = false;
     // Must enable BOTH privileges
@@ -143,13 +144,16 @@ bool reduceMemoryUsage::emptySystemWorkingSets()
             sizeof(command)
         );
     if (status != 0) qDebug() << "NtSetSystemInformation (MemoryFlushModifiedList) failed. NTSTATUS:" << hex << status;
-    command = MemoryEmptyWorkingSets;
-    status = pNtSetSystemInformation(
-            SystemMemoryListInformation,
-            &command,
-            sizeof(command)
-        );
-    if (status != 0) qDebug() << "NtSetSystemInformation (MemoryEmptyWorkingSets) failed. NTSTATUS:" << hex << status;
+    if (bCleanSystem)
+    {
+        command = MemoryEmptyWorkingSets;
+        status = pNtSetSystemInformation(
+                SystemMemoryListInformation,
+                &command,
+                sizeof(command)
+            );
+        if (status != 0) qDebug() << "NtSetSystemInformation (MemoryEmptyWorkingSets) failed. NTSTATUS:" << hex << status;
+    }
     command = MemoryPurgeStandbyList;
     status = pNtSetSystemInformation(
             SystemMemoryListInformation,
